@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ref, onValue } from "firebase/database";
+import { ref, onValue, set } from "firebase/database";
 import { database, signInAnonymouslyUser } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { RoomCard } from "@/components/RoomCard";
+import { CreateRoomDialog } from "@/components/CreateRoomDialog";
+import { LiveDateTime } from "@/components/LiveDateTime";
 import { toast } from "sonner";
 
 export default function Index() {
@@ -13,6 +15,7 @@ export default function Index() {
   const [roomCode, setRoomCode] = useState("");
   const [rooms, setRooms] = useState<{ [key: string]: any }>({});
   const [activeTab, setActiveTab] = useState("rooms");
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
   useEffect(() => {
     // Sign in anonymously
@@ -37,8 +40,17 @@ export default function Index() {
     }
   };
 
-  const handleCreateRoom = () => {
-    const newRoomId = Math.random().toString(36).substring(2, 8).toUpperCase();
+  const handleCreateRoom = async (roomName: string) => {
+    const newRoomId = "IL" + Math.random().toString(36).substring(2, 6).toUpperCase();
+    
+    // Create room with name in Firebase
+    const roomRef = ref(database, `rooms/${newRoomId}`);
+    await set(roomRef, {
+      name: roomName,
+      createdAt: Date.now()
+    });
+    
+    setCreateDialogOpen(false);
     navigate(`/room/${newRoomId}`);
   };
 
@@ -52,46 +64,60 @@ export default function Index() {
 
   return (
     <div className="min-h-screen bg-background flex">
+      <CreateRoomDialog 
+        open={createDialogOpen}
+        onClose={() => setCreateDialogOpen(false)}
+        onSubmit={handleCreateRoom}
+      />
+
       {/* Sidebar - Hidden on mobile */}
       <aside className="hidden lg:flex lg:w-64 bg-card border-r flex-col p-4">
         <div className="flex items-center gap-3 mb-8 px-2">
-          <span className="material-icons text-primary text-3xl">chat_bubble</span>
-          <span className="text-xl font-medium">Anonymous Chat</span>
+          <span className="material-icons text-primary text-3xl">spa</span>
+          <span className="text-xl font-medium">Inner Leaf</span>
         </div>
         
-        <nav className="space-y-2">
-          <button
-            onClick={() => setActiveTab("rooms")}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-              activeTab === "rooms"
-                ? "bg-accent text-accent-foreground"
-                : "hover:bg-accent/50"
-            }`}
-          >
-            <span className="material-icons">calendar_today</span>
-            <span className="font-medium">Rooms</span>
-          </button>
+        <nav className="space-y-2 flex-1 overflow-y-auto">
+          <div className="text-xs font-medium text-muted-foreground px-4 py-2 uppercase">
+            Your Rooms
+          </div>
           
-          <button
-            onClick={() => setActiveTab("active")}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-              activeTab === "active"
-                ? "bg-accent text-accent-foreground"
-                : "hover:bg-accent/50"
-            }`}
-          >
-            <span className="material-icons">videocam</span>
-            <span className="font-medium">Active Chats</span>
-          </button>
+          {Object.entries(rooms).length === 0 ? (
+            <div className="px-4 py-8 text-sm text-muted-foreground text-center">
+              No rooms yet. Create one to get started!
+            </div>
+          ) : (
+            Object.entries(rooms).map(([roomId, roomData]) => (
+              <button
+                key={roomId}
+                onClick={() => navigate(`/room/${roomId}`)}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-accent/50 transition-colors text-left"
+              >
+                <span className="material-icons text-primary">chat</span>
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium truncate">
+                    {roomData.name || `Room ${roomId}`}
+                  </div>
+                  <div className="text-xs text-muted-foreground truncate">
+                    {roomId}
+                  </div>
+                </div>
+              </button>
+            ))
+          )}
         </nav>
       </aside>
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col">
-        {/* Header - Mobile only */}
-        <header className="lg:hidden bg-card border-b px-4 py-4 flex items-center gap-3">
-          <span className="material-icons text-primary text-2xl">chat_bubble</span>
-          <span className="text-lg font-medium">Anonymous Chat</span>
+        {/* Header */}
+        <header className="bg-card border-b px-4 md:px-6 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="material-icons text-primary text-2xl lg:hidden">spa</span>
+            <span className="text-lg font-medium lg:hidden">Inner Leaf</span>
+            <span className="hidden lg:block text-base font-medium">Inner Leaf Chat</span>
+          </div>
+          <LiveDateTime />
         </header>
 
         {/* Main Content Area */}
@@ -110,7 +136,7 @@ export default function Index() {
             {/* Action Section */}
             <div className="flex flex-col sm:flex-row gap-4 items-center justify-center mb-8">
               <Button
-                onClick={handleCreateRoom}
+                onClick={() => setCreateDialogOpen(true)}
                 size="lg"
                 className="h-12 px-6 gap-2 font-medium"
               >
@@ -157,6 +183,7 @@ export default function Index() {
                     <RoomCard
                       key={roomId}
                       roomId={roomId}
+                      roomName={roomData.name}
                       participantCount={getRoomParticipantCount(roomData)}
                     />
                   ))}

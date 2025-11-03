@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { ref, push, onValue, serverTimestamp } from "firebase/database";
 import { database, auth } from "@/lib/firebase";
 import { UsernameDialog } from "@/components/UsernameDialog";
+import { LiveDateTime } from "@/components/LiveDateTime";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -19,6 +20,7 @@ export default function Room() {
   const { roomId } = useParams();
   const navigate = useNavigate();
   const [username, setUsername] = useState<string | null>(null);
+  const [roomName, setRoomName] = useState<string>("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -26,8 +28,17 @@ export default function Room() {
   useEffect(() => {
     if (!roomId) return;
 
+    // Listen to room data including name
+    const roomRef = ref(database, `rooms/${roomId}`);
+    const roomUnsubscribe = onValue(roomRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data?.name) {
+        setRoomName(data.name);
+      }
+    });
+
     const messagesRef = ref(database, `rooms/${roomId}/messages`);
-    const unsubscribe = onValue(messagesRef, (snapshot) => {
+    const messagesUnsubscribe = onValue(messagesRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
         const messagesList = Object.entries(data).map(([id, msg]: [string, any]) => ({
@@ -42,7 +53,10 @@ export default function Room() {
       }
     });
 
-    return () => unsubscribe();
+    return () => {
+      roomUnsubscribe();
+      messagesUnsubscribe();
+    };
   }, [roomId]);
 
   useEffect(() => {
@@ -84,22 +98,30 @@ export default function Room() {
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
       <header className="bg-card border-b shadow-sm">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <span className="material-icons text-primary">chat</span>
-            <div>
-              <h1 className="text-lg font-semibold">Room {roomId}</h1>
-              <p className="text-sm text-muted-foreground">Logged in as {username}</p>
+        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            <span className="material-icons text-primary">spa</span>
+            <div className="min-w-0 flex-1">
+              <h1 className="text-base md:text-lg font-semibold truncate">
+                {roomName || `Room ${roomId}`}
+              </h1>
+              <p className="text-xs md:text-sm text-muted-foreground truncate">
+                {roomId} • {username}
+              </p>
             </div>
           </div>
-          <Button
-            onClick={handleLeaveRoom}
-            variant="outline"
-            className="gap-2"
-          >
-            <span className="material-icons text-sm">exit_to_app</span>
-            <span className="hidden sm:inline">Leave</span>
-          </Button>
+          <div className="flex items-center gap-3">
+            <LiveDateTime />
+            <Button
+              onClick={handleLeaveRoom}
+              variant="outline"
+              size="sm"
+              className="gap-2"
+            >
+              <span className="material-icons text-sm">exit_to_app</span>
+              <span className="hidden sm:inline">Leave</span>
+            </Button>
+          </div>
         </div>
       </header>
 

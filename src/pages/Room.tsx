@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ref, push, onValue, serverTimestamp, update, remove } from "firebase/database";
+import { ref, push, onValue, serverTimestamp, update, remove, set, onDisconnect } from "firebase/database";
 import { database } from "@/lib/firebase";
 import { UsernameDialog } from "@/components/UsernameDialog";
 import { LiveDateTime } from "@/components/LiveDateTime";
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { toast } from "sonner";
 
 interface Message {
@@ -28,14 +29,17 @@ interface Message {
 export default function Room() {
   const { roomId } = useParams();
   const navigate = useNavigate();
-  const [username, setUsername] = useState<string | null>(null);
+  const [username, setUsername] = useState<string | null>(() => localStorage.getItem("chatUsername"));
   const [roomName, setRoomName] = useState<string>("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [presence, setPresence] = useState<Record<string, { username: string; typing?: boolean; lastSeen?: number }>>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const clientIdRef = useRef<string | null>(null);
 
   // Load username from localStorage on mount
   useEffect(() => {
@@ -88,6 +92,58 @@ export default function Room() {
       messagesUnsubscribe();
     };
   }, [roomId]);
+
+  // Presence tracking
+  useEffect(() => {
+    if (!roomId || !username) return;
+
+    // Ensure a stable client id
+    if (!clientIdRef.current) {
+      const existing = localStorage.getItem("clientId");
+      if (existing) {
+        clientIdRef.current = existing;
+      } else {
+        const id = Math.random().toString(36).slice(2, 10);
+        clientIdRef.current = id;
+        localStorage.setItem("clientId", id);
+      }
+    }
+
+    const clientId = clientIdRef.current!;
+    const presenceRef = ref(database, `rooms/${roomId}/presence/${clientId}`);
+    set(presenceRef, { username, typing: false, lastSeen: serverTimestamp() });
+    onDisconnect(presenceRef).remove();
+
+    const presenceRoomRef = ref(database, `rooms/${roomId}/presence`);
+    const unsubPresence = onValue(presenceRoomRef, (snap) => {
+      setPresence(snap.val() || {});
+    });
+
+    return () => {
+      unsubPresence();
+    };
+  }, [roomId, username]);
+
+  // Typing indicator updates
+  useEffect(() => {
+    if (!roomId || !username || !clientIdRef.current) return;
+    const presenceRef = ref(database, `rooms/${roomId}/presence/${clientIdRef.current}`);
+
+    const isTyping = newMessage.trim().length > 0;
+    let timeout: number | undefined;
+
+    update(presenceRef, { typing: isTyping, lastSeen: serverTimestamp() }).catch(() => {});
+
+    if (isTyping) {
+      timeout = window.setTimeout(() => {
+        update(presenceRef, { typing: false, lastSeen: serverTimestamp() }).catch(() => {});
+      }, 2000);
+    }
+
+    return () => {
+      if (timeout) window.clearTimeout(timeout);
+    };
+  }, [newMessage, roomId, username]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -204,6 +260,11 @@ export default function Room() {
     return <UsernameDialog open={true} onSubmit={handleUsernameSubmit} />;
   }
 
+  const participantsList = Object.values(presence || {});
+  const typingUsers = (participantsList as any[])
+    .filter((p: any) => p?.typing && p?.username !== username)
+    .map((p: any) => p.username);
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
@@ -231,6 +292,14 @@ export default function Room() {
           <div className="flex items-center gap-2">
             <LiveDateTime />
             <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Room settings"
+              onClick={() => setIsSettingsOpen(true)}
+            >
+              <span className="material-icons">settings</span>
+            </Button>
+            <Button
               onClick={handleLeaveRoom}
               variant="outline"
               size="sm"
@@ -242,6 +311,50 @@ export default function Room() {
           </div>
         </div>
       </header>
+
+      <Sheet open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+        <SheetContent side="right" className="w-full sm:max-w-md">
+          <SheetHeader>
+            <SheetTitle>Room settings</SheetTitle>
+            <SheetDescription>Manage room name and see participants</SheetDescription>
+          </SheetHeader>
+          <div className="mt-6 space-y-6">
+            <section>
+              <h3 className="text-sm font-medium mb-2">Participants ({Object.keys(presence).length})</h3>
+              <div className="space-y-2 max-h-[50vh] overflow-auto pr-2">
+                {Object.values(presence || {}).map((p: any, idx: number) => (
+                  <div key={idx} className="flex items-center gap-3">
+                    <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${p.username}`} alt={p.username} className="w-8 h-8 rounded-full" />
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium truncate">{p.username}</div>
+                      {p.typing ? (
+                        <div className="text-xs text-primary">typing…</div>
+                      ) : (
+                        <div className="text-xs text-muted-foreground">online</div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+            <section className="border-t pt-4">
+              <h3 className="text-sm font-medium mb-2">Rename room</h3>
+              <div className="flex gap-2">
+                <Input value={roomName} onChange={(e) => setRoomName(e.target.value)} placeholder="Room name" className="flex-1" />
+                <Button onClick={async () => {
+                  if (!roomId) return;
+                  try {
+                    await update(ref(database, `rooms/${roomId}`), { name: roomName });
+                    toast.success("Room renamed");
+                  } catch (e) {
+                    toast.error("Failed to rename");
+                  }
+                }}>Save</Button>
+              </div>
+            </section>
+          </div>
+        </SheetContent>
+      </Sheet>
 
       {/* Messages */}
       <main className="flex-1 container mx-auto px-4 py-4 overflow-hidden flex flex-col max-w-4xl">
@@ -310,6 +423,20 @@ export default function Room() {
               >
                 <span className="material-icons text-sm">close</span>
               </Button>
+            </div>
+          )}
+          {typingUsers.length > 0 && (
+            <div className="flex items-center gap-2 mb-2 text-sm text-muted-foreground animate-fade-in">
+              {typingUsers.slice(0, 2).map((name) => (
+                <div className="flex items-center gap-1" key={name}>
+                  <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${name}`} alt={name} className="w-5 h-5 rounded-full" />
+                  <span className="font-medium">{name}</span>
+                </div>
+              ))}
+              {typingUsers.length > 2 && (
+                <span>+{typingUsers.length - 2}</span>
+              )}
+              <span>is typing…</span>
             </div>
           )}
           <form onSubmit={handleSendMessage} className="flex gap-2">

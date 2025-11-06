@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ref, onValue, set } from "firebase/database";
+import { ref, onValue, set, serverTimestamp } from "firebase/database";
 import { database, signInAnonymouslyUser } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,7 +56,7 @@ export default function Index() {
     const roomRef = ref(database, `rooms/${newRoomId}`);
     await set(roomRef, {
       name: roomName,
-      createdAt: Date.now()
+      createdAt: serverTimestamp(),
     });
     
     setCreateDialogOpen(false);

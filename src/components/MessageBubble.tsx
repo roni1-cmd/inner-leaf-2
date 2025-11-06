@@ -54,6 +54,7 @@ export const MessageBubble = ({
   onReply,
 }: MessageBubbleProps) => {
   const [showActions, setShowActions] = useState(false);
+  const [pinActions, setPinActions] = useState(false);
 
   const reactions = message.reactions || {};
   const reactionEntries = Object.entries(reactions).filter(([_, users]) => users.length > 0);
@@ -67,6 +68,8 @@ export const MessageBubble = ({
       className={`flex gap-2 group ${isOwn ? "flex-row-reverse" : "flex-row"}`}
       onMouseEnter={() => setShowActions(true)}
       onMouseLeave={() => setShowActions(false)}
+      onFocus={() => setShowActions(true)}
+      onBlur={() => setShowActions(false)}
     >
       {/* Avatar */}
       <div className="flex-shrink-0">
@@ -114,13 +117,13 @@ export const MessageBubble = ({
           </Card>
 
           {/* Quick Actions */}
-          {showActions && (
+          {(showActions || pinActions) && (
             <div
               className={`absolute top-0 flex gap-1 ${
                 isOwn ? "right-full mr-2" : "left-full ml-2"
               }`}
             >
-              <Popover>
+              <Popover onOpenChange={(open) => setPinActions(open)}>
                 <PopoverTrigger asChild>
                   <Button
                     variant="ghost"
@@ -130,7 +133,7 @@ export const MessageBubble = ({
                     <span className="material-icons text-sm">add_reaction</span>
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-2">
+                <PopoverContent className="z-50 bg-popover border shadow-md w-auto p-2">
                   <div className="flex gap-1">
                     {QUICK_REACTIONS.map((emoji) => (
                       <Button
@@ -147,7 +150,7 @@ export const MessageBubble = ({
                 </PopoverContent>
               </Popover>
 
-              <DropdownMenu>
+              <DropdownMenu onOpenChange={(open) => setPinActions(open)}>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
@@ -157,7 +160,7 @@ export const MessageBubble = ({
                     <span className="material-icons text-sm">more_horiz</span>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align={isOwn ? "end" : "start"}>
+                <DropdownMenuContent className="z-50 bg-popover border shadow-md" align={isOwn ? "end" : "start"}>
                   <DropdownMenuItem onClick={() => onReply(message)}>
                     <span className="material-icons text-sm mr-2">reply</span>
                     Reply

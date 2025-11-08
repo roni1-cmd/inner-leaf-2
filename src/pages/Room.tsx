@@ -328,33 +328,35 @@ export default function Room() {
         </header>
 
         {/* Messages */}
-        <main className="flex-1 overflow-hidden flex flex-col">
-          <ScrollArea className="flex-1 px-4">
-            <div className="max-w-4xl mx-auto space-y-4 py-4">
-              {messages.length === 0 ? (
-                <div className="flex items-center justify-center h-full text-muted-foreground py-20">
-                  <div className="text-center">
-                    <span className="material-icons text-5xl mb-4 opacity-50">chat_bubble_outline</span>
-                    <p>No messages yet. Start the conversation!</p>
+        <main className="flex-1 flex flex-col min-h-0">
+          <div className="flex-1 overflow-hidden">
+            <ScrollArea className="h-full">
+              <div className="max-w-4xl mx-auto space-y-4 py-4 px-4">
+                {messages.length === 0 ? (
+                  <div className="flex items-center justify-center h-full text-muted-foreground py-20">
+                    <div className="text-center">
+                      <span className="material-icons text-5xl mb-4 opacity-50">chat_bubble_outline</span>
+                      <p>No messages yet. Start the conversation!</p>
+                    </div>
                   </div>
-                </div>
-              ) : (
-                messages.map((message) => (
-                  <MessageBubble
-                    key={message.id}
-                    message={message}
-                    isOwn={message.username === username}
-                    currentUsername={username || ""}
-                    onReact={handleReact}
-                    onEdit={handleEdit}
-                    onDelete={handleDelete}
-                    onReply={handleReply}
-                  />
-                ))
-              )}
-              <div ref={messagesEndRef} />
-            </div>
-          </ScrollArea>
+                ) : (
+                  messages.map((message) => (
+                    <MessageBubble
+                      key={message.id}
+                      message={message}
+                      isOwn={message.username === username}
+                      currentUsername={username || ""}
+                      onReact={handleReact}
+                      onEdit={handleEdit}
+                      onDelete={handleDelete}
+                      onReply={handleReply}
+                    />
+                  ))
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+            </ScrollArea>
+          </div>
 
           {/* Message Input */}
           <div className="border-t bg-card px-4 py-3">

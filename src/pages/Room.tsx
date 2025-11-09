@@ -342,7 +342,7 @@ export default function Room() {
   const regularMessages = filteredMessages.filter((msg) => !msg.pinned);
 
   return (
-    <div className="min-h-screen bg-background flex w-full">
+    <div className="h-dvh bg-background flex w-full overflow-hidden">
       {/* Left Sidebar - Rooms (Desktop) */}
       <div className="hidden lg:block w-80 flex-shrink-0">
         <RoomsSidebar currentRoomId={roomId} />
@@ -356,7 +356,7 @@ export default function Room() {
       </Sheet>
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 min-h-0">
         {/* Chat Header */}
         <header className="bg-card border-b shadow-sm">
           <div className="px-4 py-3 flex items-center justify-between">
@@ -427,8 +427,8 @@ export default function Room() {
         </header>
 
         {/* Messages */}
-        <main className="flex-1 flex flex-col overflow-hidden">
-          <ScrollArea className="flex-1">
+        <main className="flex-1 flex flex-col overflow-hidden min-h-0">
+          <ScrollArea className="flex-1 h-full">
             <div className="max-w-4xl mx-auto space-y-4 py-4 px-4">
               {pinnedMessages.length > 0 && (
                 <div className="bg-muted/50 border border-border rounded-lg p-3 mb-4">

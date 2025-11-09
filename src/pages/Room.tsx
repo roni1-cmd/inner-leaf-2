@@ -2,7 +2,6 @@ import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ref, push, onValue, serverTimestamp, update, remove, set, onDisconnect } from "firebase/database";
 import { database } from "@/lib/firebase";
-import { supabase } from "@/integrations/supabase/client";
 import { UsernameDialog } from "@/components/UsernameDialog";
 import { MessageBubble } from "@/components/MessageBubble";
 import { RoomsSidebar } from "@/components/RoomsSidebar";
@@ -297,6 +296,7 @@ export default function Room() {
 
     try {
       setUploadingFile(true);
+      const { supabase } = await import("@/integrations/supabase/client");
       
       const fileExt = file.name.split('.').pop();
       const fileName = `${Date.now()}.${fileExt}`;
@@ -337,6 +337,7 @@ export default function Room() {
 
     try {
       setUploadingFile(true);
+      const { supabase } = await import("@/integrations/supabase/client");
 
       const fileName = `voice_${Date.now()}.webm`;
       const filePath = `${roomId}/${fileName}`;

@@ -124,7 +124,7 @@ export const MessageBubble = ({
             }`}
           >
             <p className="text-xs font-medium mb-1 opacity-90">
-              {message.username}
+              {message.nickname || message.username}
             </p>
             
             {/* File Attachment */}
@@ -160,7 +160,7 @@ export const MessageBubble = ({
             
             {textWithoutUrls && (
               <p className="break-words whitespace-pre-wrap">
-                {textWithoutUrls}
+                {renderText ? renderText(textWithoutUrls) : textWithoutUrls}
                 {message.edited && (
                   <span className="text-xs opacity-70 ml-2">(edited)</span>
                 )}

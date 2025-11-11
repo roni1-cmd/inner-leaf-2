@@ -53,11 +53,23 @@ export default function Index() {
   const handleCreateRoom = async (roomName: string) => {
     const newRoomId = "IL" + Math.random().toString(36).substring(2, 6).toUpperCase();
     
-    // Create room with name in Firebase
+    // Get or create clientId
+    let clientId = localStorage.getItem("clientId");
+    if (!clientId) {
+      clientId = Math.random().toString(36).slice(2, 10);
+      localStorage.setItem("clientId", clientId);
+    }
+    
+    // Create room with name and creator in Firebase
     const roomRef = ref(database, `rooms/${newRoomId}`);
     await set(roomRef, {
       name: roomName,
       createdAt: serverTimestamp(),
+      creator: clientId,
+      admins: {},
+      members: {},
+      mutedUsers: {},
+      bannedUsers: {},
     });
     
     setCreateDialogOpen(false);

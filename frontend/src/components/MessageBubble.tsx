@@ -62,6 +62,7 @@ export const MessageBubble = ({
   onDelete,
   onReply,
   onPin,
+  renderText,
 }: MessageBubbleProps) => {
   const [showActions, setShowActions] = useState(false);
   const [pinActions, setPinActions] = useState(false);
